@@ -1,0 +1,59 @@
+flowchart TB
+    buyer["Покупатель<br/>[Person]<br/>Просматривает товары и оформляет заказы"]
+    seller["Продавец<br/>[Person]<br/>Управляет своими товарами"]
+
+    subgraph marketplace["Маркетплейс — граница системы"]
+        web["Веб-клиент<br/>[Container: JavaScript]<br/>Интерфейс покупателя и продавца"]
+        users["Users<br/>[Container: Go]<br/>Профили, роли, контакты и предпочтения"]
+        catalog["Catalog<br/>[Container: Go]<br/>Товары, текущие цены и доступность"]
+        feed["Feed<br/>[Container: Go]<br/>Ранжирование товаров по интересам"]
+        orders["Orders<br/>[Container: Go]<br/>Заказы, снимки позиций и статусы"]
+        payments["Payments<br/>[Container: Go]<br/>Расчёт суммы и учёт платежей"]
+        notifications["Notifications<br/>[Container: Go]<br/>Отправка уведомлений и учёт доставки"]
+
+        users_db[("Users DB<br/>[Container: PostgreSQL]<br/>Профили, роли, контакты, интересы")]
+        catalog_db[("Catalog DB<br/>[Container: PostgreSQL]<br/>Товары и категории")]
+        orders_db[("Orders DB<br/>[Container: PostgreSQL]<br/>Заказы, позиции и история статусов")]
+        payments_db[("Payments DB<br/>[Container: PostgreSQL]<br/>Платежи, суммы и операции провайдера")]
+        notifications_db[("Notifications DB<br/>[Container: PostgreSQL]<br/>Задания и результаты доставки")]
+
+        payment_results["payment-results<br/>[Container: очередь RabbitMQ]<br/>Результаты платежей для Orders"]
+        order_status_changes["order-status-changes<br/>[Container: очередь RabbitMQ]<br/>Изменения заказов для Notifications"]
+    end
+
+    provider["Платёжный провайдер<br/>[External Software System]<br/>Обрабатывает оплату"]
+    email["Провайдер email<br/>[External Software System]<br/>Доставляет письма"]
+
+    buyer -->|"Работает с интерфейсом"| web
+    seller -->|"Работает с интерфейсом"| web
+    web -->|"Получает и изменяет профиль и интересы / sync"| users
+    web -->|"Просматривает и редактирует товары / sync"| catalog
+    web -->|"Запрашивает персональную ленту / sync"| feed
+    web -->|"Создаёт и просматривает заказы / sync"| orders
+    feed -->|"Получает интересы / sync"| users
+    feed -->|"Получает товары / sync"| catalog
+    orders -->|"Проверяет товары и цены / sync"| catalog
+    orders -->|"Создаёт платёж по снимку заказа / sync"| payments
+    notifications -->|"Получает email покупателя / sync"| users
+
+    users --> users_db
+    catalog --> catalog_db
+    orders --> orders_db
+    payments --> payments_db
+    notifications --> notifications_db
+
+    payments -->|"Инициирует оплату / sync"| provider
+    provider -.->|"Передаёт результат оплаты / async"| payments
+    payments -.->|"Публикует результат оплаты / async"| payment_results
+    payment_results -.->|"Доставляет результат оплаты / async"| orders
+    orders -.->|"Публикует изменение статуса заказа / async"| order_status_changes
+    order_status_changes -.->|"Доставляет изменение статуса заказа / async"| notifications
+    notifications -->|"Запрашивает отправку письма / sync"| email
+    email -->|"Доставляет письмо"| buyer
+
+    classDef person fill:#08427b,color:#fff,stroke:#052e56
+    classDef container fill:#1168bd,color:#fff,stroke:#0b4884
+    classDef external fill:#666,color:#fff,stroke:#444
+    class buyer,seller person
+    class web,users,catalog,feed,orders,payments,notifications,users_db,catalog_db,orders_db,payments_db,notifications_db,payment_results,order_status_changes container
+    class provider,email external
