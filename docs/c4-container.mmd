@@ -2,7 +2,7 @@ flowchart TB
     buyer["Покупатель<br/>[Person]<br/>Просматривает товары и оформляет заказы"]
     seller["Продавец<br/>[Person]<br/>Управляет своими товарами"]
 
-    subgraph marketplace["Маркетплейс — граница системы"]
+    subgraph marketplace["Маркетплейс: граница системы"]
         web["Веб-клиент<br/>[Container: JavaScript]<br/>Интерфейс покупателя и продавца"]
         users["Users<br/>[Container: Go]<br/>Профили, роли, контакты и предпочтения"]
         catalog["Catalog<br/>[Container: Go]<br/>Товары, текущие цены и доступность"]
